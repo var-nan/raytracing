@@ -10,13 +10,15 @@
 
 #include "rtweekend.h"
 #include "hittable.h"
+#include "material.h"
 
 class camera {
     public:
 
         double aspect_ratio = 1.0;
         int image_width = 100;
-        int samples_per_pixel = 10;
+        int samples_per_pixel = 10; // random samples per each pixel.
+        int max_depth = 10; // maximum number of ray bounces into scene.
 
         void render(const hittable& world) {
             
@@ -36,7 +38,7 @@ class camera {
                     color pixel_color(0,0,0);
                     for (int sample = 0; sample < samples_per_pixel; sample++){
                         ray r = get_ray(i,j);
-                        pixel_color += ray_color(r, world);
+                        pixel_color += ray_color(r, max_depth, world);
                     }
 
                     // auto pixel_center = pixel00_loc + (i*pixel_delta_u) + (j*pixel_delta_v);
@@ -112,13 +114,24 @@ class camera {
             
         }
 
-        color ray_color (const ray& r, const hittable& world) {
+        color ray_color (const ray& r, int depth, const hittable& world) {
+
+            if (depth <= 0) return color(0,0,0); // if we've exceeded ray bounce limit, no more light is gathered.
 
             hit_record rec;
 
             // if the ray hits any objects in the world.
-            if (world.hit(r, interval(0, infinity), rec)) {
-                return 0.5 * (rec.normal + color(1,1,1));
+            /* the reason for 0.001 in the interval is still not understood, related to some shadow acne.*/
+            if (world.hit(r, interval(0.001, infinity), rec)) {
+                ray scattered;
+                color attenuation;
+                if (rec.mat->scatter(r, rec, attenuation, scattered))
+                    return attenuation * ray_color(scattered, depth-1, world);
+                return color(0,0,0);
+                // // vec3 direction = random_on_hemisphere(rec.normal);
+                // vec3 direction = rec.normal + random_unit_vector();
+                // // return 0.5 * (rec.normal + color(1,1,1));
+                // return 0.5 * ray_color(ray(rec.p, direction), depth-1, world); // return only 50% of the color of ray from a bounce. 
             }
 
             // ray doesn't hit any objects, return the color according
