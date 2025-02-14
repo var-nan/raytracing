@@ -61,6 +61,14 @@ class metal : public material {
 class dielectric: public material {
     private:
         double refraction_index;
+
+        static double reflectance(double cosine, double ri) {
+            // use schlick's approximation for reflectance.
+            auto r0 = (1-ri)/(1+ri);
+            r0 = r0*r0;
+            return r0 + (1-r0)*std::pow((1-cosine), 5);
+        }
+
     
     public:
         dielectric(double refraction_index_) : refraction_index(refraction_index_) {}
@@ -68,13 +76,28 @@ class dielectric: public material {
         bool scatter(const ray& r_in, const hit_record& rec,
                 color& attenuation, ray& scattered) const override {
             
-            attenuation = color(1.0,1.0,1.0);
+            attenuation = color(1.0,1.0,1.0); // does it mean how much light is reflected?
             double ri = rec.front_face ? (1.0/refraction_index) : refraction_index;
             
             vec3 unit_direction = unit_vector(r_in.direction());
-            vec3 refracted = refract(unit_direction, rec.normal, ri);
+            // total internal reflection. 
+            /*
+                    Some rays doesn't have solution with snell's law.  
+                    sin theta' = eta/eta' * sin theta
 
-            scattered = ray(rec.p, refracted);
+                    if (ray * sin_theta > 1.0) // ray doesn't have valid solution, must reflect.  
+                    else // ray have valid solution, ray can refract.
+            */
+            double cos_theta = std::fmin(dot(-unit_direction, rec.normal), 1.0);
+            double sin_theta = std::sqrt(1.0 - cos_theta*cos_theta);
+
+            bool cannot_refract = ri * sin_theta > 1.0;
+            vec3 direction;
+
+            if (cannot_refract || (reflectance(cos_theta, ri)>  ri)) direction = reflect(unit_direction, rec.normal);
+            else direction = refract(unit_direction, rec.normal, ri);
+            // vec3 refracted = refract(unit_direction, rec.normal, ri);
+            scattered = ray(rec.p, direction);
             return true;
         }
 };
