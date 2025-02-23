@@ -17,14 +17,20 @@ class ray {
     private:
         point3 orig;
         vec3 dir;
+        double tm;
+
     public:
         ray() {}
         ray(const point3& orig_, const vec3& dire_) :
             orig(orig_), dir(dire_){}
 
+        ray(const point3& orig_, const vec3& dire_, double time) :
+            orig(orig_), dir(dire_), tm(time){}
+
         const point3& origin() const {return orig;}
         const vec3& direction() const {return dir;}
 
+        double time() const { return tm; }
         // returns the position of ray after t intervals. 
         point3 at(double t) const {
             return orig + t*dir;
